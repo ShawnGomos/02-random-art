@@ -32,7 +32,15 @@ import Prelude hiding (lookup)
 -- 0
 
 assoc :: Int -> String -> [(String, Int)] -> Int
-assoc def key kvs = error "TBD:assoc"
+assoc def key kvs = assoc2 def key kvs
+
+assoc2 :: Int -> String -> [(String, Int)] -> Int
+assoc2 def _ [] = def
+assoc2 def key (x:xs) = if first x == key 
+                         then second x
+                         else assoc2 def key xs
+    where first (x, _)  = x
+          second (_, x) = x
 
 --------------------------------------------------------------------------------
 {- | `removeDuplicates l`
@@ -59,8 +67,8 @@ removeDuplicates l = reverse (helper [] l)
     helper seen []     = seen
     helper seen (x:xs) = helper seen' rest'
       where
-        seen'          = error "TBD:helper:seen"
-        rest'          = error "TBD:helper:rest"
+        seen'          = if x `elem` seen then seen else (x:seen)
+        rest'          = xs
 
 --------------------------------------------------------------------------------
 {- | `wwhile f x` returns `x'` where there exist values
@@ -79,7 +87,12 @@ removeDuplicates l = reverse (helper [] l)
 -- 512
 
 wwhile :: (a -> (Bool, a)) -> a -> a
-wwhile f n = error "TBD:wwhile"
+wwhile f n = if fst' output
+               then wwhile f (snd' output)
+               else snd' output
+    where output = f(n)
+          fst' (y,_) = y
+          snd' (_,z) = z
 
 --------------------------------------------------------------------------------
 {- | The **fixpoint** of a function `f` starting at `x`
@@ -119,7 +132,14 @@ wwhile f n = error "TBD:wwhile"
   -}
 
 fixpointL :: (Int -> Int) -> Int -> [Int]
-fixpointL f x = error "TBD:fixpointL"
+fixpointL f x = reverse'(fixPointHelper f x (x:[]))
+    where
+        fixPointHelper :: (Int -> Int) -> Int -> [Int] -> [Int]
+        fixPointHelper f x l = if f(x) `elem` l 
+                                    then l
+                                    else fixPointHelper f (f(x)) ((f(x)):l)
+        reverse' [] = []
+        reverse' (x:xs) = (reverse' xs) ++ [x]
 
 -- You should see the following behavior at the prompt:
 
@@ -155,7 +175,7 @@ collatz n
 fixpointW :: (Int -> Int) -> Int -> Int
 fixpointW f x = wwhile wwf x
  where
-   wwf        = error "TBD:fixpoint:wwf"
+   wwf x = (f x /= x, f x)
 
 -- >>> fixpointW collatz 1
 -- 1

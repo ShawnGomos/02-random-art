@@ -1,7 +1,3 @@
--- | Based on code by Chris Stone
-
-{-# LANGUAGE FlexibleContexts #-}
-
 module RandomArt where
 
 import           Text.Printf (printf)
@@ -25,11 +21,13 @@ data Expr
   | Average Expr Expr
   | Times   Expr Expr
   | Thresh  Expr Expr Expr Expr
+  | Absolute Expr
+  | TripDiv Expr Expr Expr
   deriving (Show)
 
 --------------------------------------------------------------------------------
 -- | Some sample Expressions ---------------------------------------------------
---------------------------------------------------------------------------------
+-------------------------------------------------------------------------------
 
 sampleExpr0 :: Expr
 sampleExpr0 = Sine (Average VarX VarY)
@@ -78,12 +76,14 @@ sampleExpr3 =
 
 exprToString :: Expr -> String
 exprToString VarX                 = "x"
-exprToString VarY                 = error "TBD:VarY"
-exprToString (Sine e)             = error "TBD:Sin"
-exprToString (Cosine e)           = error "TBD:Cos"
-exprToString (Average e1 e2)      = error "TBD:Avg"
-exprToString (Times e1 e2)        = error "TBD:Times"
-exprToString (Thresh e1 e2 e3 e4) = error "TBD:Thresh"
+exprToString VarY                 = "y"
+exprToString (Sine e)             = "sin(pi*" ++ exprToString(e) ++ ")"
+exprToString (Cosine e)           = "cos(pi*" ++ exprToString(e) ++ ")"
+exprToString (Average e1 e2)      = "((" ++ exprToString(e1) ++ "+" ++ exprToString(e2) ++ ")/2)"
+exprToString (Times e1 e2)        = exprToString(e1) ++ "*" ++ exprToString(e2)
+exprToString (Thresh e1 e2 e3 e4) = "(" ++ exprToString(e1) ++ "<" ++ exprToString(e2) ++ "?" ++ exprToString(e3) ++ ":" ++ exprToString(e4) ++ ")"
+exprToString (Absolute e1)        = "|" ++ exprToString(e1) ++ "|"
+exprToString (TripDiv e1 e2 e3)   = "(" ++ exprToString(e1) ++ "/" ++ exprToString(e2) ++ "/" ++ exprToString(e3) ++ ")"
 
 --------------------------------------------------------------------------------
 -- | Evaluating Expressions at a given X, Y co-ordinate ------------------------
@@ -99,8 +99,30 @@ exprToString (Thresh e1 e2 e3 e4) = error "TBD:Thresh"
 -- 0.8090169943749475
 
 eval :: Double -> Double -> Expr -> Double
-eval x y e = error "TBD:eval"
-
+eval x y e = case e of 
+    VarX -> x 
+    VarY -> y 
+    Average e1 e2 -> ((evalFn x y e1) + (evalFn x y e2))/2 
+    Sine e1 -> sin $ pi*(evalFn x y e1)
+    Cosine e1 -> cos $ pi*(evalFn x y e1)
+    Times e1 e2 -> (evalFn x y e1) * (evalFn x y e2)
+    Thresh e1 e2 e3 e4 ->
+        if (evalFn x y e1)<(evalFn x y e2)
+            then (evalFn x y e3)
+            else (evalFn x y e4)
+    Absolute e1 -> abs (evalFn x y e1)
+    TripDiv e1 e2 e3 -> 
+        x1'*x3'/x2'
+        where
+            x1 = evalFn x y e1
+            x2 = evalFn x y e2
+            x3 = evalFn x y e3
+            x1' = if (abs(tan x1))  > 1.0 then (tan x1)/2 else tan x1
+            x2' = if (cosh x2)      > 1.0 then 1.0 else cosh x2
+            x3' = if (abs(sinh x3)) > 1.0 then 1.0 else sinh x3
+          
+--  ((tan (abs(eval x y e1))) * 1/(cos (eval x y e2)))*(eval x y e3)
+   
 evalFn :: Double -> Double -> Expr -> Double
 evalFn x y e = assert (-1.0 <= rv && rv <= 1.0) rv
   where
@@ -122,8 +144,12 @@ evalFn x y e = assert (-1.0 <= rv && rv <= 1.0) rv
 buildS :: Int -> Expr
 buildS 0 = VarX
 buildS 1 = VarY
-buildS n = Sine (Average (buildS (n-1)) (buildS (n-2)))
-
+buildS 2 = Times (Cosine VarX) (Sine VarY)
+buildS 3 = Cosine (Average (Sine VarY) (Times (VarX) (VarX)))
+buildS 4 = Sine (Times (Absolute VarX) (Absolute VarY))
+buildS n = if mod n 2 == 0
+    then Sine (Average (buildS (n-1)) (buildS (n-2)))
+    else TripDiv (buildS (n-3)) (buildS (n-2)) (build (n-1))
 
 --------------------------------------------------------------------------------
 -- | Building Random Expressions -----------------------------------------------
@@ -138,24 +164,30 @@ build 0
   | otherwise = VarY
   where
     r         = rand 10
-build d       = error "TBD:build"
+build d       = buildS d 
+
+--     1 -> (Average VarX VarY)
+--     2 -> (Times VarX VarY)
+--     3 -> (Times (Average VarX VarY) VarX)
+--     4 -> (Average (Cosine VarY) (Sine VarX))
+--     5 -> (Average (Cosine VarY) VarX) 
+--     6 -> (Times VarX (Average VarY VarX))
 
 --------------------------------------------------------------------------------
 -- | Best Image "Seeds" --------------------------------------------------------
 --------------------------------------------------------------------------------
 
 -- grayscale
-g1, g2, g3 :: (Int, Int)
-g1 = (error "TBD:depth1", error "TBD:seed1")
-g2 = (error "TBD:depth2", error "TBD:seed2")
-g3 = (error "TBD:depth3", error "TBD:seed3")
-
+g1, g2, g3 :: (Int,Int)
+g1 = (12,1)
+g2 = (13,13) 
+g3 = (10,5) 
 
 -- color
 c1, c2, c3 :: (Int, Int)
-c1 = (error "TBD:depth1", error "TBD:seed1")
-c2 = (error "TBD:depth2", error "TBD:seed2")
-c3 = (error "TBD:depth3", error "TBD:seed3")
+c1 = (12,1) 
+c2 = (13,13) 
+c3 = (10,5) 
 
 --------------------------------------------------------------------------------
 --------------------------------------------------------------------------------
