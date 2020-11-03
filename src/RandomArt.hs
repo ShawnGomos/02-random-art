@@ -22,7 +22,7 @@ data Expr
   | Times   Expr Expr
   | Thresh  Expr Expr Expr Expr
   | Absolute Expr
-  | TripDiv Expr Expr Expr
+  | Mosh    Expr Expr Expr
   deriving (Show)
 
 --------------------------------------------------------------------------------
@@ -83,8 +83,7 @@ exprToString (Average e1 e2)      = "((" ++ exprToString(e1) ++ "+" ++ exprToStr
 exprToString (Times e1 e2)        = exprToString(e1) ++ "*" ++ exprToString(e2)
 exprToString (Thresh e1 e2 e3 e4) = "(" ++ exprToString(e1) ++ "<" ++ exprToString(e2) ++ "?" ++ exprToString(e3) ++ ":" ++ exprToString(e4) ++ ")"
 exprToString (Absolute e1)        = "|" ++ exprToString(e1) ++ "|"
-exprToString (TripDiv e1 e2 e3)   = "(" ++ exprToString(e1) ++ "/" ++ exprToString(e2) ++ "/" ++ exprToString(e3) ++ ")"
-
+exprToString (Mosh e1 e2 e3)      = "[((|tan(" ++ exprToString(e1) ++ ")|>1.0?tan(" ++ exprToString(e1) ++  ")/2:tan(" ++ exprToString(e1) ++ ")*(cosh(" ++ exprToString(e2) ++ ")>1.0?1.0:cosh(" ++ exprToString(e2) ++ "))/(|sinh(" ++ exprToString(e3) ++")>1.0?1.0:sinh(" ++ exprToString(e3) ++ ")]"
 --------------------------------------------------------------------------------
 -- | Evaluating Expressions at a given X, Y co-ordinate ------------------------
 --------------------------------------------------------------------------------
@@ -111,7 +110,7 @@ eval x y e = case e of
             then (evalFn x y e3)
             else (evalFn x y e4)
     Absolute e1 -> abs (evalFn x y e1)
-    TripDiv e1 e2 e3 -> 
+    Mosh e1 e2 e3 -> 
         x1'*x3'/x2'
         where
             x1 = evalFn x y e1
@@ -120,9 +119,7 @@ eval x y e = case e of
             x1' = if (abs(tan x1))  > 1.0 then (tan x1)/2 else tan x1
             x2' = if (cosh x2)      > 1.0 then 1.0 else cosh x2
             x3' = if (abs(sinh x3)) > 1.0 then 1.0 else sinh x3
-          
---  ((tan (abs(eval x y e1))) * 1/(cos (eval x y e2)))*(eval x y e3)
-   
+
 evalFn :: Double -> Double -> Expr -> Double
 evalFn x y e = assert (-1.0 <= rv && rv <= 1.0) rv
   where
@@ -144,12 +141,8 @@ evalFn x y e = assert (-1.0 <= rv && rv <= 1.0) rv
 buildS :: Int -> Expr
 buildS 0 = VarX
 buildS 1 = VarY
-buildS 2 = Times (Cosine VarX) (Sine VarY)
-buildS 3 = Cosine (Average (Sine VarY) (Times (VarX) (VarX)))
-buildS 4 = Sine (Times (Absolute VarX) (Absolute VarY))
-buildS n = if mod n 2 == 0
-    then Sine (Average (buildS (n-1)) (buildS (n-2)))
-    else TripDiv (buildS (n-3)) (buildS (n-2)) (build (n-1))
+buildS n = Sine (Average (buildS (n-1)) (buildS (n-2)))
+
 
 --------------------------------------------------------------------------------
 -- | Building Random Expressions -----------------------------------------------
@@ -164,14 +157,24 @@ build 0
   | otherwise = VarY
   where
     r         = rand 10
-build d       = buildS d 
-
---     1 -> (Average VarX VarY)
---     2 -> (Times VarX VarY)
---     3 -> (Times (Average VarX VarY) VarX)
---     4 -> (Average (Cosine VarY) (Sine VarX))
---     5 -> (Average (Cosine VarY) VarX) 
---     6 -> (Times VarX (Average VarY VarX))
+build 1  
+  | rand(2) < 1 = Cosine VarX
+  | otherwise   = Sine VarY
+build 2 
+  | rand(2) < 1 = Sine (build 1)
+  | otherwise   = Cosine (build 1)
+build 3 = Absolute (build (rand 3))
+build 4 = Mosh (build r) (build r) (build r)
+   where r = rand(4)
+build 5 = Thresh (build r) (build r) 
+         (build (r+3)) (build (r+1))
+   where r = rand(2)
+build 6  
+  | rand(2) < 1 = Times (build 5) (build 4) 
+  | otherwise   = Average (build 5) (build 4)
+build d
+  | rand(2) < 1 = Sine (build (d-1)) 
+  | otherwise   = Mosh (build (d-2)) (build (d-4)) (build (d-6))
 
 --------------------------------------------------------------------------------
 -- | Best Image "Seeds" --------------------------------------------------------
@@ -179,15 +182,15 @@ build d       = buildS d
 
 -- grayscale
 g1, g2, g3 :: (Int,Int)
-g1 = (12,1)
-g2 = (13,13) 
-g3 = (10,5) 
+g1 = (10,15)
+g2 = (12,42) 
+g3 = (12,61) 
 
 -- color
-c1, c2, c3 :: (Int, Int)
-c1 = (12,1) 
-c2 = (13,13) 
-c3 = (10,5) 
+c1, c2, c3 :: (Int,Int)
+c1 = (10,15)
+c2 = (12,42) 
+c3 = (12,61) 
 
 --------------------------------------------------------------------------------
 --------------------------------------------------------------------------------

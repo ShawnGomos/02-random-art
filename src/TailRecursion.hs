@@ -32,15 +32,10 @@ import Prelude hiding (lookup)
 -- 0
 
 assoc :: Int -> String -> [(String, Int)] -> Int
-assoc def key kvs = assoc2 def key kvs
-
-assoc2 :: Int -> String -> [(String, Int)] -> Int
-assoc2 def _ [] = def
-assoc2 def key (x:xs) = if first x == key 
-                         then second x
-                         else assoc2 def key xs
-    where first (x, _)  = x
-          second (_, x) = x
+assoc def _ [] = def
+assoc def key (x:xs) = let (y,z) = x in if y == key 
+                         then z
+                         else assoc def key xs
 
 --------------------------------------------------------------------------------
 {- | `removeDuplicates l`
@@ -87,12 +82,9 @@ removeDuplicates l = reverse (helper [] l)
 -- 512
 
 wwhile :: (a -> (Bool, a)) -> a -> a
-wwhile f n = if fst' output
-               then wwhile f (snd' output)
-               else snd' output
-    where output = f(n)
-          fst' (y,_) = y
-          snd' (_,z) = z
+wwhile f n = let (x,y) = f(n) in if x
+                 then wwhile f(y)
+                 else y
 
 --------------------------------------------------------------------------------
 {- | The **fixpoint** of a function `f` starting at `x`
